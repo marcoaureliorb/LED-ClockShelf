@@ -1,6 +1,8 @@
 
 /*
- *This project is based on the project available at https://www.diymachines.co.uk/how-to-build-a-giant-hidden-shelf-edge-clock
+ * This project is based on the project available at https://www.diymachines.co.uk/how-to-build-a-giant-hidden-shelf-edge-clock
+ *
+ * Buy me a coffee to say thanks: https://ko-fi.com/marcoaureliorb
 */
 
 #include <Adafruit_NeoPixel.h>
