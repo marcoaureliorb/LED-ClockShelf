@@ -41,13 +41,10 @@
 
 #define NUM_LED_SEGMENT 9
 
-#define QUARENTA_CINCO_SEGUNDOS 45 * 1000
-#define UM_MINUTO 60 * 1000
-
 /*
-  28 partes
-  09 leds por parte / 83.4 mA
-  252 leds totais / 3A consumo
+   28 parts
+   09 leds per part / 252 leds
+   3A 
   
   *********   ********   *********   ********   *********   ********   ********* 
  *    22   * *        * *    15   * *        * *    8    * *        * *    1    *
@@ -70,16 +67,16 @@
   *********   ********   ********    ********   *********   ********   ********* 
 */
 
-int second = 0;
-int minute = 0;
-int hour = 12;
-int dayOfWeek = 5; //friday
+// Initial config for date and time.
+int second     = 0;
+int minute     = 0;
+int hour       = 12;
+int dayOfWeek  = 5; //friday
 int dayOfMonth = 1;
-int month = 1;
-int year = 2021;
+int month      = 1;
+int year       = 2021;
 
 String days[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
-
 
 int clockMinutecolor = 0;
 int clockHourcolor   = 0;
@@ -93,11 +90,11 @@ int tempValuecolor  = 0;
 int tempSymbolcolor = 0;
 
 unsigned long millisAtualizacao = millis();
+
 static String command = "\0";
 
 DHT dht(DHTPIN, DHTTYPE);
 
-// Declare our NeoPixel objects:
 Adafruit_NeoPixel stripClock(LEDCLOCK_COUNT, LEDCLOCK_PIN, NEO_RGB + NEO_KHZ800);
 Adafruit_NeoPixel stripDownlighter(LEDDOWNLIGHT_COUNT, LEDDOWNLIGHT_PIN, NEO_GRB + NEO_KHZ800);
 
@@ -110,16 +107,18 @@ long total = 0;            // the running total
 long average = 0;          // the average
 
 void setup() {
+  
   Serial.begin(9600);
   Dabble.begin(9600);
   Wire.begin();
   dht.begin();
   
-  clockMinutecolor = convertColorToInt(0, 0, 255);
-  clockHourcolor   = convertColorToInt(255, 255, 255);
-  downLightercolor = convertColorToInt(255, 255, 255);
-  tempValuecolor   = convertColorToInt(0, 0, 255);
-  tempSymbolcolor  = convertColorToInt(255, 255, 255);
+  clockMinutecolor = colorToInt(0, 0, 255);
+  clockHourcolor   = colorToInt(255, 255, 255);
+  downLightercolor = colorToInt(255, 255, 255);
+  tempValuecolor   = colorToInt(0, 0, 255);
+  tempSymbolcolor  = colorToInt(255, 255, 255);
+  
   clockFaceBrightness = 100;  
    
   stripClock.begin();
@@ -132,33 +131,31 @@ void setup() {
 
   setClockBrightness();
   setDownLighter();
+  
 }
-
 
 void loop() {
   
   readTheBluetoothCommand();
-  //Serial.println(millis() - millisAtualizacao);
   
   if((millis() - millisAtualizacao) <= 45000){
     readTheLightSensor();
     readTheTime();
-    displayTheTime();  
+    displayTheTime();
   }
   else{
     readTheTemperature();
-    displayTheTemperature();    
+    displayTheTemperature();
   }
 
   if((millis() - millisAtualizacao) >=  60000){
     millisAtualizacao = millis();
   }  
+  
 }
 
 void setDownLighter(){
 
-
-  
   //Serial.print("Down Lighter status = ");
   //Serial.println(downLighterStatus);
 
@@ -172,13 +169,16 @@ void setDownLighter(){
   else{
     stripDownlighter.clear();
   }
+  
 }
 
 void setClockBrightness(){
+  
   //Serial.print("ClockBrightness: ");
   //Serial.println(clockFaceBrightness);
   stripClock.setBrightness(clockFaceBrightness);
   stripClock.show();
+  
 }
 
 void readTheBluetoothCommand(){
@@ -199,22 +199,22 @@ void readTheBluetoothCommand(){
       Serial.println(command);
 
       if (command.startsWith("CM")){//Command: CM255255255
-        clockMinutecolor = convertColorToInt(command.substring(2));
+        clockMinutecolor = colorToInt(command.substring(2));
       }
       else if (command.startsWith("CH")){//Command: CH255255255
-        clockHourcolor = convertColorToInt(command.substring(2));
+        clockHourcolor = colorToInt(command.substring(2));
       }
       else if (command.startsWith("TV")){//Command: TV255255255
-        tempValuecolor = convertColorToInt(command.substring(2));
+        tempValuecolor = colorToInt(command.substring(2));
       } 
       else if (command.startsWith("TS")){//Command: TS255255255
-        tempSymbolcolor = convertColorToInt(command.substring(2));
+        tempSymbolcolor = colorToInt(command.substring(2));
       }
       else if (command.startsWith("DLS")){//Command: DLSON / DLSOFF
         downLighterStatus = command.substring(3,5) == "ON";
       } 
       else if (command.startsWith("DLC")){//Command: DLC255255255
-        downLightercolor = convertColorToInt(command.substring(2));
+        downLightercolor = colorToInt(command.substring(2));
       }   
       else if (command.startsWith("ST")){ //Command: STDOWDDMMYYHHMM
         
@@ -248,6 +248,7 @@ void readTheBluetoothCommand(){
       Serial.println(command);
     }
   }
+  
 }
 
 void readTheLightSensor(){
@@ -285,10 +286,11 @@ void readTheLightSensor(){
   
   //Serial.print("Mapped brightness value = ");
   //Serial.println(clockFaceBrightness);  
+  
 }
 
-
 void readTheTime(){
+
   readPCF8563();
 
   //Serial.print(days[dayOfWeek]); 
@@ -311,7 +313,9 @@ void readTheTime(){
   {
     //Serial.print("0");
   }  
+  
   //Serial.println(second);
+  
 }
 
 void readTheTemperature(){
@@ -330,6 +334,7 @@ void readTheTemperature(){
   //Serial.print("Temperature: ");
   //Serial.print(t);
   //Serial.println("ºC ");
+  
 }
 
 void displayTheTime(){
@@ -344,8 +349,6 @@ void displayTheTime(){
   int secondMinuteDigit = floor(minute / 10); //work out the value for the second digit and then display it
   displayNumber(secondMinuteDigit, 63, clockMinutecolor);  
 
-  // -----------------------------------------------------
-
   //Serial.print("Clock hour color = ");
   //Serial.println(clockHourcolor);   
   int firstHourDigit = hour % 10; //work out the value for the third digit and then display it
@@ -355,6 +358,7 @@ void displayTheTime(){
   displayNumber(firstHourDigit, 189, clockHourcolor);
   
   stripClock.show();
+  
 }
 
 void displayTheTemperature(){
@@ -376,14 +380,16 @@ void displayTheTemperature(){
   displayNumber(secondTempDigit, 189, tempValuecolor);
     
   stripClock.show();
+  
 }
 
 //----------------------------------------------------
 //           Funcoes para leitura da hora
 //----------------------------------------------------
-void readPCF8563()
-// this gets the time and date from the PCF8563
-{
+void readPCF8563(){
+
+  // this gets the time and date from the PCF8563
+
   Wire.beginTransmission(PCF8563address);
   Wire.write(0x02);
   Wire.endTransmission();
@@ -395,6 +401,7 @@ void readPCF8563()
   dayOfWeek  = bcdToDec(Wire.read() & B00000111);  
   month      = bcdToDec(Wire.read() & B00011111);  // remove century bit, 1999 is over
   year       = bcdToDec(Wire.read());
+  
 }
 
 void setPCF8563(
@@ -404,9 +411,10 @@ void setPCF8563(
   int pDayOfWeek,
   int pDayOfMonth,
   int pMonth,
-  int pYear)
-// this sets the time and date to the PCF8563
-{
+  int pYear){
+
+ // this sets the time and date to the PCF8563
+
   hour = pHour;
   minute = pMinute;
   second = pSecond;  
@@ -435,4 +443,3 @@ void setPCF8563(
   Wire.write(decToBcd(year));
   Wire.endTransmission();
 }
-//----------------------------------------------------

@@ -1,4 +1,4 @@
-int convertColorToInt(String color){
+int colorToInt(String color){
   int red   = color[0]+color[1]+color[2];
   int green = color[3]+color[4]+color[5];
   int blue  = color[6]+color[7]+color[8];
@@ -6,7 +6,7 @@ int convertColorToInt(String color){
   return convertColorToInt(red, green, blue);
 }
 
-int convertColorToInt(int red, int green, int blue){
+int colorToInt(int red, int green, int blue){
 //(red * 65536) + (green * 256) + blue ->for 32-bit merged color value so 16777215 equals white
   return red   * 65536 +
          green * 256   +
