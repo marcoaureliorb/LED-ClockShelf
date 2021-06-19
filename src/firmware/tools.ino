@@ -3,7 +3,7 @@ int colorToInt(String color){
   int green = color[3]+color[4]+color[5];
   int blue  = color[6]+color[7]+color[8];
   
-  return convertColorToInt(red, green, blue);
+  return colorToInt(red, green, blue);
 }
 
 int colorToInt(int red, int green, int blue){
