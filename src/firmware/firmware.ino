@@ -41,6 +41,15 @@
 
 #define NUM_LED_SEGMENT 9
 
+#define CLOCK_HOUR_COLOR         "CHC"
+#define CLOCK_MINUTE_COLOR       "CMC"
+#define TEMPERATURE_VALUE_COLOR  "TVC"
+#define TEMPERATURE_SYMBOL_COLOR "TSC"
+#define DOWN_LIGHT_STATE         "DLS"
+#define DOWN_LIGTH_COLOR         "DLC"
+#define DOWN_LIGHT_BRIGHTNESS    "DLB"
+#define SET_DATE_TIME            "SDT"
+
 /*
    28 parts
    09 leds per part / 252 leds
@@ -78,16 +87,17 @@ int year       = 2021;
 
 String days[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
 
-int clockMinutecolor = 0;
-int clockHourcolor   = 0;
+uint32_t clockMinutecolor = 0;
+uint32_t clockHourcolor   = 0;
 int clockFaceBrightness = 0;
 
-int downLightercolor = 0;
+uint32_t downLightercolor = 0;
 bool downLighterStatus = true;
+int downLighterBrightness = 0;
 
-int temperature = 22;
-int tempValuecolor  = 0;
-int tempSymbolcolor = 0;
+int temperature = 0;
+uint32_t tempValuecolor  = 0;
+uint32_t tempSymbolcolor = 0;
 
 unsigned long millisAtualizacao = millis();
 
@@ -107,40 +117,46 @@ long total = 0;            // the running total
 long average = 0;          // the average
 
 void setup() {
-  
   Serial.begin(9600);
+
+  Serial.println("Setup start");
+  
   Dabble.begin(9600);
   Wire.begin();
   dht.begin();
+
+  clockFaceBrightness = 100; 
+  downLighterBrightness = 50;
+  
+  stripClock.begin();           // INITIALIZE NeoPixel stripClock object (REQUIRED)
+  stripClock.show();            // Turn OFF all pixels ASAP
+  stripClock.setBrightness(clockFaceBrightness); // Set inital BRIGHTNESS (max = 255)
+
+  stripDownlighter.begin();           // INITIALIZE NeoPixel stripClock object (REQUIRED)
+  stripDownlighter.show();            // Turn OFF all pixels ASAP
+  stripDownlighter.setBrightness(downLighterBrightness); // Set BRIGHTNESS (max = 255)  
   
   clockMinutecolor = colorToInt(0, 0, 255);
   clockHourcolor   = colorToInt(255, 255, 255);
   downLightercolor = colorToInt(255, 255, 255);
   tempValuecolor   = colorToInt(0, 0, 255);
   tempSymbolcolor  = colorToInt(255, 255, 255);
-  
-  clockFaceBrightness = 100;  
    
-  stripClock.begin();
-  stripClock.show();
-  stripClock.setBrightness(clockFaceBrightness); //Set inital BRIGHTNESS (max = 255)
-
   for (int thisReading = 0; thisReading < numReadings; thisReading++) {
     readings[thisReading] = 0;
   }
-
-  setClockBrightness();
+  
   setDownLighter();
   
+  Serial.println("Setup finish");
 }
 
 void loop() {
-  
   readTheBluetoothCommand();
   
   if((millis() - millisAtualizacao) <= 45000){
     readTheLightSensor();
-    readTheTime();
+    readTheDateTime();
     displayTheTime();
   }
   else{
@@ -151,38 +167,33 @@ void loop() {
   if((millis() - millisAtualizacao) >=  60000){
     millisAtualizacao = millis();
   }  
-  
 }
 
 void setDownLighter(){
+  Serial.print("Down Lighter status = ");
+  Serial.println(downLighterStatus);
 
-  //Serial.print("Down Lighter status = ");
-  //Serial.println(downLighterStatus);
+  Serial.print("Down Lighter color = ");
+  Serial.println(downLightercolor);
 
-  //Serial.print("Down Lighter color = ");
-  //Serial.println(downLightercolor);
-    
   if(downLighterStatus){  
     stripDownlighter.fill(downLightercolor, 0, LEDDOWNLIGHT_COUNT);
     stripDownlighter.show();
   }
   else{
     stripDownlighter.clear();
+    stripDownlighter.show();
   }
-  
 }
 
 void setClockBrightness(){
-  
-  //Serial.print("ClockBrightness: ");
-  //Serial.println(clockFaceBrightness);
+  Serial.print("ClockBrightness: ");
+  Serial.println(clockFaceBrightness);
   stripClock.setBrightness(clockFaceBrightness);
   stripClock.show();
-  
 }
 
 void readTheBluetoothCommand(){
-  
   Dabble.processInput();  
  
   if(Terminal.available())
@@ -191,73 +202,50 @@ void readTheBluetoothCommand(){
 
     if(caracter != '#'){
       command += caracter;
-      Serial.print("Comando: ");
-      Serial.println(command);      
     }
     else{
-      Serial.print("Comando: ");
-      Serial.println(command);
-
-      if (command.startsWith("CM")){//Command: CM255255255
-        clockMinutecolor = colorToInt(command.substring(2));
-      }
-      else if (command.startsWith("CH")){//Command: CH255255255
-        clockHourcolor = colorToInt(command.substring(2));
-      }
-      else if (command.startsWith("TV")){//Command: TV255255255
-        tempValuecolor = colorToInt(command.substring(2));
-      } 
-      else if (command.startsWith("TS")){//Command: TS255255255
-        tempSymbolcolor = colorToInt(command.substring(2));
-      }
-      else if (command.startsWith("DLS")){//Command: DLSON / DLSOFF
-        downLighterStatus = command.substring(3,5) == "ON";
-      } 
-      else if (command.startsWith("DLC")){//Command: DLC255255255
-        downLightercolor = colorToInt(command.substring(2));
-      }   
-      else if (command.startsWith("ST")){ //Command: STDOWDDMMYYHHMM
+        Serial.print("Comando: ");
+        Serial.println(command);
         
-        String pDayOfWeek = String(command[2]);
-        String pDayOfMonth = String(command[3]) + String(command[4]);
-        String pMonth = String(command[5]) + String(command[6]);
-        String pYear = String(command[7]) + String(command[8]);
-        String pHour = String(command[9]) + String(command[10]);
-        String pMinute = String(command[11]) + String(command[12]);
-        int pSecond = 0;
+        String parametros = command.substring(3);
+        String resposta = "command failed";
+  
+        if (command.startsWith(CLOCK_MINUTE_COLOR)){
+          resposta = handleClockMinuteColorChange(parametros);
+        }
+        else if (command.startsWith(CLOCK_HOUR_COLOR)){
+          resposta = handleClockHourColorChange(parametros);
+        }
+        else if (command.startsWith(TEMPERATURE_VALUE_COLOR)){
+          resposta = handleTemperatureValueColorChange(parametros);
+        } 
+        else if (command.startsWith(TEMPERATURE_SYMBOL_COLOR)){
+          resposta = handleTemperatureSymbolColorChange(parametros);
+        }
+        else if (command.startsWith(DOWN_LIGHT_STATE)){
+          resposta = handleDownLightStateChange(parametros);
+        } 
+        else if (command.startsWith(DOWN_LIGTH_COLOR)){
+          resposta = handleDownLightColorChange(parametros);
+        }   
+        else if (command.startsWith(DOWN_LIGHT_BRIGHTNESS)){
+          resposta = handleDownLightBrightnessChange(parametros);
+        }
+        else if (command.startsWith(SET_DATE_TIME)){
+          resposta = handleSetDateTime(parametros);
+        } 
 
-        #ifdef DEBUG
-        Serial.print(days[pDayOfWeek.toInt()]); 
-        Serial.print(",");
-        Serial.print(pDayOfMonth);
-        Serial.print("/");
-        Serial.print(pMonth);
-        Serial.print("/");
-        Serial.print(pYear);        
-        Serial.print(" ");
-        Serial.print(pHour);
-        Serial.print(":");
-        Serial.println(pMinute);
-        #endif        
-        
-        setPCF8563(pHour.toInt(), pMinute.toInt(), pSecond, pDayOfWeek.toInt(), pDayOfMonth.toInt(), pMonth.toInt(), pYear.toInt());
-      } 
-   
       command = "\0";
-      Serial.print("Comando: ");
-      Serial.println(command);
+      Terminal.println(resposta);
     }
   }
-  
 }
 
 void readTheLightSensor(){
 
   //Record a reading from the light sensor and add it to the array
   readings[readIndex] = analogRead(A0); //get an average light level from previouse set of samples
-  
-  ////Serial.print("Light sensor value added to array = ");
-  ////Serial.println(readings[readIndex]);
+
   readIndex = readIndex + 1; // advance to the next position in the array:
 
   // if we're at the end of the array move the index back around...
@@ -273,53 +261,17 @@ void readTheLightSensor(){
     sumBrightness += readings[i];
   }
   
-  ////Serial.print("Sum of the brightness array = ");
-  ////Serial.println(sumBrightness);
-
   // and calculate the average: 
   int lightSensorValue = sumBrightness / numReadings;
-  ////Serial.print("Average light sensor value = ");
-  ////Serial.println(lightSensorValue);
 
   //set the brightness based on ambiant light levels
   clockFaceBrightness = constrain(map(lightSensorValue,0, 1023, 200, 50), 50, 200); 
   
-  //Serial.print("Mapped brightness value = ");
-  //Serial.println(clockFaceBrightness);  
-  
-}
-
-void readTheTime(){
-
-  readPCF8563();
-
-  //Serial.print(days[dayOfWeek]); 
-  //Serial.print(" ");  
-  //Serial.print(dayOfMonth);
-  //Serial.print("/");
-  //Serial.print(month);
-  //Serial.print("/20");
-  //Serial.print(year);
-  //Serial.print(" - ");
-  //Serial.print(hour);
-  //Serial.print(":");
-  if (minute < 10)
-  {
-    //Serial.print("0");
-  }
-  //Serial.print(minute);
-  //Serial.print(":");  
-  if (second < 10)
-  {
-    //Serial.print("0");
-  }  
-  
-  //Serial.println(second);
-  
+  Serial.print("Mapped brightness value = ");
+  Serial.println(clockFaceBrightness);  
 }
 
 void readTheTemperature(){
-  
   // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
 
   // Read temperature as Celsius (the default)
@@ -327,67 +279,120 @@ void readTheTemperature(){
 
   // Check if any reads failed and exit early (to try again).
   if (isnan(t)) {
-    //Serial.println(F("Failed to read from DHT sensor!"));
+    Serial.println(F("Failed to read from DHT sensor!"));
     return;
   }
 
-  //Serial.print("Temperature: ");
-  //Serial.print(t);
-  //Serial.println("ºC ");
-  
+  Serial.print("Temperature: ");
+  Serial.print(t);
+  Serial.println("ºC ");  
 }
 
 void displayTheTime(){
 
-  stripClock.clear(); //clear the clock face 
+  stripClock.clear(); //clear the clock face
 
-  //Serial.print("Clock Minute color = ");
-  //Serial.println(clockMinutecolor); 
+  stripClock.setBrightness(clockFaceBrightness); //Set inital BRIGHTNESS (max = 255)    
+
   int firstMinuteDigit = minute % 10; //work out the value of the first digit and then display it
   displayNumber(firstMinuteDigit, 0, clockMinutecolor);
 
   int secondMinuteDigit = floor(minute / 10); //work out the value for the second digit and then display it
   displayNumber(secondMinuteDigit, 63, clockMinutecolor);  
 
-  //Serial.print("Clock hour color = ");
-  //Serial.println(clockHourcolor);   
   int firstHourDigit = hour % 10; //work out the value for the third digit and then display it
   displayNumber(firstHourDigit, 126, clockHourcolor);
 
   int secondHourDigit = floor(hour / 10); //work out the value for the fourth digit and then display it
   displayNumber(firstHourDigit, 189, clockHourcolor);
   
-  stripClock.show();
-  
+  stripClock.show();  
 }
 
 void displayTheTemperature(){
-
   stripClock.clear();
 
-  //Serial.print("Temperature symbol color = ");
-  //Serial.println(tempSymbolcolor); 
-  letterC(0, tempSymbolcolor);  
-  
-  symbolDegrees(63, tempSymbolcolor);
+  displayLetterC(0, tempSymbolcolor);  
+  displaySymbolDegrees(63, tempSymbolcolor);
 
-  //Serial.print("Temperature digit color = ");
-  //Serial.println(tempValuecolor); 
   int firstTempDigit = temperature % 10; //work out the value for the third digit and then display it
   displayNumber(firstTempDigit, 126, tempValuecolor);
 
   int secondTempDigit = floor(temperature / 10); //work out the value for the fourth digit and then display it
   displayNumber(secondTempDigit, 189, tempValuecolor);
     
-  stripClock.show();
+  stripClock.show();  
+}
+
+//----------------------------------------------------
+//           API Bluetooth function
+//----------------------------------------------------
+
+String handleClockHourColorChange(String parametros){
+  clockHourcolor = colorToInt(parametros);
   
+  return "Clock Hour Color changed";
+}
+
+String handleClockMinuteColorChange(String parametros){
+  clockMinutecolor = colorToInt(parametros);
+  
+  return "Clock Minute Color changed";
+}
+
+String handleTemperatureValueColorChange(String parametros){
+  tempValuecolor = colorToInt(parametros);
+  
+  return "Temperature Value Color changed";  
+}
+
+String handleTemperatureSymbolColorChange(String parametros){
+  tempSymbolcolor = colorToInt(parametros);
+  
+  return "Temperature Symbol Color changed";
+}
+
+String handleDownLightStateChange(String parametro){
+  downLighterStatus = parametro == "ON";
+  setDownLighter();
+  
+  return "Down Lighter Status changed";  
+}
+
+String handleDownLightColorChange(String parametros){
+  downLightercolor = colorToInt(parametros);
+  downLighterStatus = true;
+  setDownLighter();
+  
+  return "Down Lighter Color changed";
+}
+
+String handleDownLightBrightnessChange(String parametro){
+  downLighterBrightness = parametro.toInt();
+  downLighterStatus = true;        
+  setDownLighter();
+  
+  return "Down Lighter Brightness changed";   
+}
+
+String handleSetDateTime(String parametros){
+  
+  String pDayOfWeek = String(command[0]);
+  String pDayOfMonth = String(command[1]) + String(command[2]);
+  String pMonth = String(command[3]) + String(command[4]);
+  String pYear = "20" + String(command[5]) + String(command[6]);
+  String pHour = String(command[7]) + String(command[8]);
+  String pMinute = String(command[9]) + String(command[10]);
+  int pSecond = 0;
+  writeTheDateTime(pHour.toInt(), pMinute.toInt(), pSecond, pDayOfWeek.toInt(), pDayOfMonth.toInt(), pMonth.toInt(), pYear.toInt());  
+  
+  return "Date and Time changed";
 }
 
 //----------------------------------------------------
 //           Funcoes para leitura da hora
 //----------------------------------------------------
-void readPCF8563(){
-
+void readTheDateTime(){
   // this gets the time and date from the PCF8563
 
   Wire.beginTransmission(PCF8563address);
@@ -401,10 +406,11 @@ void readPCF8563(){
   dayOfWeek  = bcdToDec(Wire.read() & B00000111);  
   month      = bcdToDec(Wire.read() & B00011111);  // remove century bit, 1999 is over
   year       = bcdToDec(Wire.read());
-  
+
+  printDateTime("DateTime read", hour, minute, second, days[dayOfWeek], dayOfMonth, month, year);
 }
 
-void setPCF8563(
+void writeTheDateTime(
   int pHour,
   int pMinute,  
   int pSecond,
@@ -442,4 +448,6 @@ void setPCF8563(
   Wire.write(decToBcd(month));
   Wire.write(decToBcd(year));
   Wire.endTransmission();
+
+  printDateTime("DateTime wirte", hour, minute, second, days[dayOfWeek], dayOfMonth, month, year);
 }

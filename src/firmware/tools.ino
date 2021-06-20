@@ -1,16 +1,38 @@
-int colorToInt(String color){
-  int red   = color[0]+color[1]+color[2];
-  int green = color[3]+color[4]+color[5];
-  int blue  = color[6]+color[7]+color[8];
-  
-  return colorToInt(red, green, blue);
+void printDateTime(
+  String reader,
+  int pHour,
+  int pMinute,  
+  int pSecond,
+  String pDayOfWeek,
+  int pDayOfMonth,
+  int pMonth,
+  int pYear){
+    Serial.print(reader);
+    Serial.print(" ");
+    Serial.print(pDayOfWeek); 
+    Serial.print(",");
+    Serial.print(pDayOfMonth);
+    Serial.print("/");
+    Serial.print(pMonth);
+    Serial.print("/");
+    Serial.print(pYear);        
+    Serial.print(" ");
+    Serial.print(pHour);
+    Serial.print(":");
+    Serial.println(pMinute);
 }
 
-int colorToInt(int red, int green, int blue){
-//(red * 65536) + (green * 256) + blue ->for 32-bit merged color value so 16777215 equals white
-  return red   * 65536 +
-         green * 256   +
-         blue;
+uint32_t colorToInt(String color){
+  String red   = String(color[0]) + String(color[1]) + String(color[2]);
+  String green = String(color[3]) + String(color[4]) + String(color[5]);
+  String blue  = String(color[6]) + String(color[7]) + String(color[8]);
+  
+  return colorToInt(red.toInt(), green.toInt(), blue.toInt());
+}
+
+uint32_t colorToInt(int red, int green, int blue){
+  // (red * 65536) + (green * 256) + blue ->for 32-bit merged color value so 16777215 equals white
+  return ((uint32_t)red << 16) | ((uint32_t)green <<  8) | blue;
 }
 
 byte bcdToDec(byte value)

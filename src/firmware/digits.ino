@@ -1,3 +1,27 @@
+/*
+ * Segments locations
+ 
+                  *********  
+                 *    B    * 
+                 *         * 
+                 *         * 
+                 * C     A * 
+                 *         * 
+                 *         * 
+                 *         * 
+                 *    D    * 
+                  *********  
+                 *         * 
+                 *         * 
+                 *         * 
+                 * G     E * 
+                 *         * 
+                 *         * 
+                 *         * 
+                 *    F    * 
+                  *********  
+*/
+
 void displayNumber(int digitToDisplay, int offsetBy, int color){
     switch (digitToDisplay){
     case 0:
@@ -89,13 +113,13 @@ void digitSix(int offset, uint32_t color){
 }
 
 void digitSeven(int offset, uint32_t color){
-    segmentA(offset, color);
+  segmentA(offset, color);
   segmentB(offset, color);
   segmentE(offset, color);
 }
 
 void digitEight(int offset, uint32_t color){
-    segmentA(offset, color);
+  segmentA(offset, color);
   segmentB(offset, color);
   segmentC(offset, color);
   segmentD(offset, color);
@@ -112,43 +136,20 @@ void digitNine(int offset, uint32_t color){
   segmentE(offset, color);
 }
 
-void letterC(int offset, int color){
+void displayLetterC(int offset, int color){
   segmentB(offset, color);
   segmentC(offset, color);
   segmentF(offset, color);
   segmentG(offset, color);
 }
 
-void symbolDegrees(int offset, int color){
+void displaySymbolDegrees(int offset, int color){
   segmentA(offset, color);
   segmentB(offset, color);
   segmentC(offset, color);
   segmentD(offset, color);
 }
 
-/*
- * Segments locations
- 
-                  *********  
-                 *    B    * 
-                 *         * 
-                 *         * 
-                 * C     A * 
-                 *         * 
-                 *         * 
-                 *         * 
-                 *    D    * 
-                  *********  
-                 *         * 
-                 *         * 
-                 *         * 
-                 * G     E * 
-                 *         * 
-                 *         * 
-                 *         * 
-                 *    F    * 
-                  *********  
-*/
 void segmentA(int offset, int color){
   stripClock.fill(color, 0 * NUM_LED_SEGMENT + offset, NUM_LED_SEGMENT);
 }                                              
